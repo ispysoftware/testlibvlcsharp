@@ -33,34 +33,41 @@ namespace TestLibVLC
             _displayCB = DisplayVideo;
             _cleanupVideoCB = CleanupVideo;
 
+            var libVLC = new LibVLC();
+            libVLC.Log += _libVLC_Log;
+            var media = new Media(libVLC, "screen://", FromType.FromLocation);
 
-            using (var media = new Media(new LibVLC(), "screen://", FromType.FromLocation))
+            
+            _mediaPlayer = new MediaPlayer(media);
+
+            _mediaPlayer.SetVideoFormatCallbacks(_videoFormat, _cleanupVideoCB);
+            _mediaPlayer.SetVideoCallbacks(_lockCB, _unlockCB, _displayCB);
+
+            _mediaPlayer.EncounteredError += (sender, e) =>
             {
-                _mediaPlayer = new MediaPlayer(media);
+                Cleanup();
+            };
 
-                _mediaPlayer.SetVideoFormatCallbacks(_videoFormat, _cleanupVideoCB);
-                _mediaPlayer.SetVideoCallbacks(_lockCB, _unlockCB, _displayCB);
+            _mediaPlayer.EndReached += (sender, e) =>
+            {
+                Cleanup();
+            };
 
-                _mediaPlayer.EncounteredError += (sender, e) =>
-                {
-                    Cleanup();
-                };
-
-                _mediaPlayer.EndReached += (sender, e) =>
-                {
-                    Cleanup();
-                };
-
-                _mediaPlayer.Stopped += (sender, e) =>
-                {
-                    Cleanup();
-                };
-            }
+            _mediaPlayer.Stopped += (sender, e) =>
+            {
+                Cleanup();
+            };
+            
             _mediaPlayer.Play();
             await Task.Delay(3000); //
 
             _mediaPlayer.Stop(); // crashes here
 
+        }
+
+        private static void _libVLC_Log(object sender, LogEventArgs e)
+        {
+            Debug.WriteLine("vlc: " + e.Message);
         }
 
         private void Cleanup()
